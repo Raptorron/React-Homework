@@ -1,0 +1,134 @@
+<html>
+  <head>
+      <script crossorigin src="https://unpkg.com/react@16/umd/react.development.js"></script>
+      <script crossorigin src="https://unpkg.com/react-dom@16/umd/react-dom.development.js"></script>
+      <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.0/axios.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/react-router-dom/5.0.1/react-router-dom.js"></script>
+    <style>
+      .underline{
+        border-bottom: solid 1px black;
+      }
+      .bold{
+        font-weight: bold;
+      }
+      nav{
+        font-size: 1.5rem;
+        display: flex;
+        justify-content: space-evenly;
+        align-items: center;
+      }
+      .select{
+        border: solid 1px black;
+        padding: 1rem;
+      }
+      a {
+
+      }
+    </style>
+  </head>
+  <body>
+    <h1 class="bold">Acme Product Averages React</h1>
+    <div id="root"></div>
+    <script type="text/babel">
+      const { render } = ReactDOM;
+      const { createElement, Component } = React;
+      const { Route, HashRouter, Link, Redirect, Switch } = ReactRouterDOM;
+      const root = document.querySelector('#root');
+
+      const Products = ({products, companies, offerings}) => {
+        const processed = products.map( product => {
+        let _offerings = offerings.filter(offering => offering.productId === product.id).map( offering => {
+          return {...offering, company: companies.find( company => company.id === offering.companyId)}
+          })
+          return {...product, offerings: _offerings};
+        })
+        const name = processed.map( product => {
+          return product.offerings.map(offering => Math.min(offering.price))
+        })
+
+        return (
+          <div>
+            <h1>Products</h1>
+            <div >
+              {
+                processed.map((product, idx) => <div key={idx} > <span className={'bold'}>Products:</span> {product.name}
+                <br />
+                <span className={'bold'}>Suggested Price:</span> ${product.suggestedPrice.toFixed(2)}
+                <br />
+                <span className={'bold'}>Average Price:</span> $ {(product.offerings.map(offering => offering.price).reduce((a,b) => a+b,0)/product.offerings.length).toFixed(2)}
+                <br />
+                <span className={'bold'}>Lowest Price:</span> ${product.offerings.map(offering => offering.price).reduce((a, b) => Math.min(a, b)).toFixed(2)} Offered By: {product.offerings.reduce((a, b) => a.price < b.price ? a : b).company.name}
+
+                <div className={'underline'}></div>
+                </div>)
+              }
+            </div>
+          </div>
+        )
+      }
+
+      const Home = ({products, companies, offerings}) =>{
+        const processed = products.map( product => {
+        let _offerings = offerings.filter(offering => offering.productId === product.id).map( offering => {
+            const company = companies.find( company => company.id === offering.companyId);
+            return {...company, offering};
+          })
+          return {...product, offerings: _offerings};
+        })
+        const avg = processed.map( product => {
+          return product.offerings.map( company => company.offering.price).reduce((a,b) => a+b,0)/product.offerings.length;
+        })
+        const finalAvg = avg.reduce((a,b) => a+b,0)/avg.length;
+        return (
+          <div>
+            <h1>Home</h1>
+            <p>you have {products.length} products and the average is ${finalAvg.toFixed(2)}</p>
+          </div>
+        )
+      }
+
+      const Nav = ({path, products, companies, offerings}) => {
+
+        return (
+          <nav>
+            <Link to='/home' className={`bold${path === '/home' ? ' select' : ''}`} >Home</Link>
+            <Link to='/products' className={`bold${path === '/products' ? ' select' : ''}`} >Products</Link>
+          </nav>
+        )
+      }
+
+      class App extends Component{
+        constructor(){
+          super();
+          this.state={
+            products:[],
+            companies:[],
+            offerings:[]
+          }
+        }
+        async componentDidMount(){
+          const responses = await Promise.all([fetch('https://acme-users-api-rev.herokuapp.com/api/products'),
+          fetch('https://acme-users-api-rev.herokuapp.com/api/companies'),
+          fetch('https://acme-users-api-rev.herokuapp.com/api/offerings')]);
+          const [products, companies, offerings] = await Promise.all(responses.map(response => response.json()));
+          this.setState({products, companies, offerings})
+        }
+        render(){
+          const { products, companies, offerings } = this.state;
+          return (
+            <HashRouter>
+              <Route render={(props)=> <Nav products={products} companies={companies} offerings={offerings} path={props.location.pathname}/>}/>
+              <Switch>
+                <Route path='/home' render={ ()=> <Home products={products} companies={companies} offerings={offerings}/>}/>
+                <Route path='/products' render={()=> <Products products={products} companies={companies} offerings={offerings}/>}/>
+                <Redirect to='/home'/>
+              </Switch>
+            </HashRouter>
+          )
+        }
+      }
+      render(<App />, root);
+    </script>
+  </body>
+</html>
